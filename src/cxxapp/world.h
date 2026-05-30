@@ -18,22 +18,15 @@
 #include "pointerTo.h"
 #include "physRigidStaticNode.h"
 #include "pvector.h"
-#include "entityFactory.h"
 
 class MapModel;
 
 class World : public Entity {
-  DECLARE_CLASS(World, Entity);
-
 public:
   World();
 
-  virtual void spawn() override;
-  virtual void destroy() override;
-
-public:
-  static Entity *create_World();
-  static void register_ent_factory();
+  virtual void generate() override;
+  virtual void disable() override;
 
 private:
   void init_world_collisions();
@@ -45,8 +38,26 @@ private:
 
   int _model_index;
   const MapModel *_map_model;
-};
 
-#include "world.I"
+public:
+#ifdef SERVER
+  static Entity *create_ent_World() {
+    return new World;
+  }
+  static void register_ent_factory();
+#endif
+  static NetworkObject *create_World() {
+    return new World;
+  }
+  static NetworkClass *get_type_network_class() {
+    return _network_class;
+  }
+  virtual NetworkClass *get_network_class() const override {
+    return _network_class;
+  }
+  static void init_network_class();
+private:
+  static NetworkClass *_network_class;
+};
 
 #endif // WORLD_H

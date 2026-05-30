@@ -36,9 +36,9 @@ PredictionCopy(CopyMode _mode, PredictedObject *_obj, PTA_uchar _dest, PTA_uchar
  *
  */
 int PredictionCopy::
-transfer_data(int current_command_reference, int dest_slot) {
-  current_command_reference = current_command_reference;
-  dest_slot = dest_slot;
+transfer_data(int _current_command_reference, int _dest_slot) {
+  current_command_reference = _current_command_reference;
+  dest_slot = _dest_slot;
   cmd_num = current_command_reference + dest_slot;
 
   for (size_t i = 0; i < obj->fields.size(); ++i) {

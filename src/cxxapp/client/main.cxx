@@ -24,6 +24,9 @@
 #include "dynamicVisNode.h"
 #include "physScene.h"
 #include "physSystem.h"
+#include "../gamePhysics.h"
+#include "jobSystem.h"
+#include "pStatClient.h"
 
 ConfigVariableBool show_frame_rate_meter
 ("show-frame-rate-meter", false,
@@ -32,6 +35,10 @@ ConfigVariableBool show_frame_rate_meter
 ConfigVariableDouble fov
 ("fov", 75.0,
  PRC_DESC("The field-of-view in degrees of the main camera lens."));
+
+ConfigVariableBool want_pstats
+("want-pstats", false,
+ PRC_DESC("Attempt to connect to PStats server at client start?"));
 
 /**
  *
@@ -79,8 +86,13 @@ int
 main(int argc, char *argv[]) {
   init_libshader();
   init_libanim();
+  JobSystem::init_global_job_system();
 
   init_network_classes();
+
+  if (want_pstats) {
+    PStatClient::connect();
+  }
 
   //
   // Graphics/scene graph initialization.
@@ -150,15 +162,8 @@ main(int argc, char *argv[]) {
   //sound_mgr->list_sounds();
 
   // Initialize physics.
-  PhysSystem *phys = PhysSystem::ptr();
-  if (!phys->initialize()) {
-    std::cerr << "Failed to initialize PhysX!\n";
-    return 1;
-  }
-  PT(PhysScene) phys_world = new PhysScene;
-  phys_world->set_gravity(LVector3f(0, 0, -800.0f));
-  phys_world->set_fixed_timestep(0.015f);
-  globals.physics_world = phys_world;
+  GamePhysics *phys = GamePhysics::ptr();
+  phys->initialize();
 
   PT(AudioSound) music = sound_mgr->get_music_manager()->get_sound("audio/bgm/gamestartup1.mp3");
   music->set_loop(true);
@@ -202,7 +207,7 @@ main(int argc, char *argv[]) {
     NetworkObject::interpolate_objects();
 
     // Run physics.
-    phys_world->simulate(clock->get_dt());
+    phys->update(clock->get_frame_time());
 
     // If we have a local player, have them calculate our view (camera position and angles).
     if (local_player != nullptr) {

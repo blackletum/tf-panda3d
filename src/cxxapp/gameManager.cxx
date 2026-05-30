@@ -16,11 +16,13 @@
 #include "physRigidActorNode.h"
 #include "gamePhysics.h"
 #include "physRigidStaticNode.h"
+#include "tfNodeData.h"
 
 #ifdef SERVER
 #include "server/server.h"
 #include "tfPlayer.h"
 #include "randomizer.h"
+#include "entityFactory.h"
 #endif
 #ifdef CLIENT
 #include "client/client.h"
@@ -28,6 +30,8 @@
 #include "boundingBox.h"
 #include "sceneGraphReducer.h"
 #include "client/indexBufferCombiner.h"
+#include "dynamicVisNode.h"
+#include "mapRender.h"
 #endif
 
 NotifyCategoryDeclNoExport(gamemanager);
@@ -158,12 +162,14 @@ change_level(const Filename &level_filename) {
   PT(PandaNode) level_top = loader->load_sync(level_filename, opts);
   assert(level_top != nullptr);
   NodePath level_path(level_top);
+  _level_path = level_path;
 
   NodePath lvl_root_path = level_path.find("**/+MapRoot");
   assert(!lvl_root_path.is_empty());
   lvl_root_path.set_light_off(-1);
   MapRoot *lvl_root = DCAST(MapRoot, lvl_root_path.node());
   MapData *data = lvl_root->get_data();
+  _level_data = data;
 
   // Make sure all the RAM copies of lightmaps and cube maps get thrown away
   // when they get uploaded to the graphics card.  They take up a lot of memory.
@@ -195,7 +201,22 @@ change_level(const Filename &level_filename) {
   // Load props and overlays into scene.
   load_level_props();
 
-  _prop_phys_root.reparent_to(_level_path);
+#ifdef SERVER
+  load_level_entities();
+#endif
+
+#ifdef CLIENT
+  _level_data->set_cam(globals.camera);
+  _level_data->build_trace_scene();
+
+  DynamicVisNode *dyn_render = DCAST(DynamicVisNode, globals.dyn_render.node());
+  dyn_render->level_init(_level_data->get_num_clusters(), _level_data->get_area_cluster_tree());
+
+  PT(MapRender) scene_top = new MapRender("top");
+  scene_top->replace_node(globals.render.node());
+  scene_top->set_map_data(_level_data);
+#endif
+
 }
 
 /**
@@ -203,6 +224,11 @@ change_level(const Filename &level_filename) {
  */
 void GameManager::
 unload_level() {
+#ifdef CLIENT
+  DynamicVisNode *dyn_render = DCAST(DynamicVisNode, globals.dyn_render.node());
+  dyn_render->level_shutdown();
+#endif
+
   if (!_prop_root.is_empty()) {
     _prop_root.remove_node();
   }
@@ -297,14 +323,14 @@ load_level_props() {
     if (sprop->get_solid()) {
       PT(PhysShape) shape = physics->make_shape_from_model(prop_model_root);
       if (shape != nullptr) {
-	cnode = new PhysRigidStaticNode("prop_collision");
-	cnode->add_shape(shape);
-	// Assign prop collision to world collision group.
-	cnode->set_from_collide_mask(CollideMask_world);
-	cnode->add_to_scene(physics->get_phys_world());
-	// Match transform of physics actor to prop model.
-	NodePath cnp = prop_phys_root.attach_new_node(cnode);
-	cnp.set_transform(NodePath(), prop_model.get_net_transform());
+        cnode = new PhysRigidStaticNode("prop_collision");
+        cnode->add_shape(shape);
+        // Assign prop collision to world collision group.
+        cnode->set_from_collide_mask(CollideMask_world);
+        cnode->add_to_scene(physics->get_phys_world());
+        // Match transform of physics actor to prop model.
+        NodePath cnp = prop_phys_root.attach_new_node(cnode);
+        cnp.set_transform(NodePath(), prop_model.get_net_transform());
       }
     }
 
@@ -317,7 +343,7 @@ load_level_props() {
 
     // Tack on baked per-vertex lighting.
     _geom_index = 0;
-    bool has_any_vtx_light = r_process_prop_node(prop_root_node, sprop);
+    bool has_any_vtx_light = r_process_prop_node(prop_model.node(), sprop);
 
     prop_model.flatten_strong();
 
@@ -329,7 +355,12 @@ load_level_props() {
 
     int prop_index = _prop_models.get_num_paths();
     _prop_models.add_path(prop_model);
-    // TODO: prop index collision tag
+    if (cnode != nullptr) {
+      // Assign prop index to collision node so we can locate the geometry
+      // for decaling.
+      TFNodeData *node_data = TFNodeData::get_or_create(cnode);
+      node_data->prop_index = prop_index;
+    }
 
     prop_model.reparent_to(prop_root);
 
@@ -347,7 +378,9 @@ load_level_props() {
       prop_model.show_through(CAMERAMASK_shadow);
     }
 
-    // TODO: sync transform on collision node
+    if (cnode != nullptr) {
+      cnode->sync_transform();
+    }
   }
 
 #ifdef CLIENT
@@ -356,16 +389,16 @@ load_level_props() {
     unsigned int flags = 0;
     if (linfo.in_3d_sky) {
       if (linfo.has_vtx_light) {
-	flags = MapLightingEffect::F_default_baked_3d_sky;
+        flags = MapLightingEffect::F_default_baked_3d_sky;
       } else {
-	flags = MapLightingEffect::F_default_dynamic | MapLightingEffect::F_no_sun;
-	flags &= ~MapLightingEffect::F_dynamic_lights;
+        flags = MapLightingEffect::F_default_dynamic | MapLightingEffect::F_no_sun;
+        flags &= ~MapLightingEffect::F_dynamic_lights;
       }
     } else {
       if (linfo.has_vtx_light) {
-	flags = MapLightingEffect::F_default_baked;
+        flags = MapLightingEffect::F_default_baked;
       } else {
-	flags = MapLightingEffect::F_default_dynamic;
+        flags = MapLightingEffect::F_default_dynamic;
       }
     }
 
@@ -374,8 +407,8 @@ load_level_props() {
     // the prop.
     CPT(MapLightingEffect) light_effect = DCAST(MapLightingEffect, MapLightingEffect::make(CAMERAMASK_main, false, flags));
     light_effect->compute_lighting(linfo.prop_model.get_net_transform(), _level_data,
-				   DCAST(GeometricBoundingVolume, linfo.prop_model.get_bounds()),
-				   linfo.prop_model.get_parent().get_net_transform());
+                                   DCAST(GeometricBoundingVolume, linfo.prop_model.get_bounds()),
+                                   linfo.prop_model.get_parent().get_net_transform());
     CPT(RenderState) state = linfo.prop_model.get_state();
     state = state->compose(light_effect->get_current_lighting_state());
     linfo.prop_model.set_state(state);
@@ -390,7 +423,7 @@ load_level_props() {
       // not be a GeomNode at the root?  But have
       // specifically one node above it?
       if (overlay->get_num_children() == 0) {
-	continue;
+        continue;
       }
       overlay = overlay->get_child(0);
       assert(overlay->is_geom_node());
@@ -439,6 +472,7 @@ load_level_props() {
 #endif
 
   _prop_phys_root = prop_phys_root;
+  _prop_phys_root.reparent_to(_level_path);
 
   // Now evict the prop models we loaded from the ModelPool cache.
   for (ModelRoot *model : loaded_models) {
@@ -534,15 +568,49 @@ get_baked_vertex_lighting_array_format() {
 const RenderState *GameManager::
 get_baked_vertex_lighting_state() {
   if (_baked_vertex_lighting_state == nullptr) {
-    CPT(ShaderAttrib) sattr = ShaderAttrib::make();
+    CPT(RenderAttrib) sattr = ShaderAttrib::make();
     // The presence of this shader input on the state is what informs
     // the shader system that there's baked lighting.  Kind of dumb,
     // but I don't want to create an entire RenderAttrib type for this.
-    sattr = DCAST(ShaderAttrib, sattr->set_shader_input("bakedVertexLighting", 0.0f));
+    sattr = DCAST(ShaderAttrib, sattr)->set_shader_input("bakedVertexLighting", 0.0f);
     _baked_vertex_lighting_state = RenderState::make(sattr);
   }
   return _baked_vertex_lighting_state;
 }
+
+#ifdef SERVER
+/**
+ * Spawns entities from the map file.
+ */
+void GameManager::
+load_level_entities() {
+  assert(_level_data != nullptr);
+
+  EntityFactory *factory = EntityFactory::get_global_ptr();
+
+  for (int i = 0; i < _level_data->get_num_entities(); ++i) {
+    const MapEntity *map_ent = _level_data->get_entity(i);
+
+    PT(Entity) ent = factory->create_entity(map_ent->get_class_name());
+    if (ent != nullptr) {
+      gamemanager_cat.info()
+        << "Generated a " << map_ent->get_class_name() << " from level\n";
+      // Have the entity read in the properties from the level file.
+      ent->init_from_level(map_ent, map_ent->get_properties());
+      // TODO: server-only level entities?
+      // Don't immediately call generate() on the level entity, just pre-generate.
+      globals.sv->generate_object(ent, game_zone, nullptr, false);
+      _level_entities.push_back(ent);
+    }
+  }
+
+  // Now call generate() on all the level entities we created.
+  for (Entity *ent : _level_entities) {
+    ent->generate();
+    assert(ent->is_do_alive());
+  }
+}
+#endif
 
 /**
  *

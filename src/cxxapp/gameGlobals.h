@@ -28,6 +28,7 @@ class GameManager;
 class TFPlayer;
 
 class PhysScene;
+class World;
 
 /**
  * Holds various global variables.
@@ -45,6 +46,9 @@ struct GameGlobals {
   AsyncTaskManager *task_mgr = nullptr;
   // For tasks that run on simulation ticks.
   AsyncTaskManager *sim_task_mgr = nullptr;
+
+  // World entity.
+  World *world = nullptr;
 
   // Client-specific globals.
 #ifdef CLIENT

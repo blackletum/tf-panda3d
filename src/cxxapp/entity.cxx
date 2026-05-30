@@ -17,6 +17,11 @@
 #include "networkObject.h"
 #include "vectorNetClasses.h"
 #include "gameGlobals.h"
+#include "pdxElement.h"
+
+#ifdef SERVER
+#include "mapEntity.h"
+#endif
 
 NetworkClass *Entity::_network_class = nullptr;
 
@@ -80,6 +85,33 @@ simulate() {
  */
 void Entity::
 init_from_level(const MapEntity *map_ent, PDXElement *props) {
+  _class_name = map_ent->get_class_name();
+
+  if (props->has_attribute("targetname")) {
+    _target_name = props->get_attribute_value("targetname").get_string();
+  }
+
+  if (props->has_attribute("origin")) {
+    LPoint3f origin;
+    props->get_attribute_value("origin").to_vec3(origin);
+    set_pos(origin);
+  }
+
+  if (props->has_attribute("angles")) {
+    LVecBase3f angles;
+    props->get_attribute_value("angles").to_vec3(angles);
+    set_hpr(LVecBase3f(angles[1] - 90, -angles[0], angles[2]));
+  }
+
+  if (props->has_attribute("TeamNum")) {
+    _team = props->get_attribute_value("TeamNum").get_int();
+  }
+
+  if (props->has_attribute("parentname")) {
+    // We just store it when initializing.  We will resolve the parent
+    // and actually reparent the entity later in generate().
+    _parent_entity_target_name = props->get_attribute_value("parentname").get_string();
+  }
 }
 
 #endif

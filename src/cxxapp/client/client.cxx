@@ -169,7 +169,7 @@ handle_generate_object(DatagramIterator &scan) {
 
     if (client_cat.is_debug()) {
       client_cat.debug()
-	<< "Got generate for object, classid " << classid << ", doid " << doid << ", zone id " << zoneid << ", has initial state: " << has_state << "\n";
+        << "Got generate for object, classid " << classid << ", doid " << doid << ", zone id " << zoneid << ", has initial state: " << has_state << "\n";
     }
 
     NetworkClass *net_class = reg->get_class_by_id(classid);
@@ -178,7 +178,7 @@ handle_generate_object(DatagramIterator &scan) {
     if (net_class == nullptr) {
       client_cat.warning()
         << "Received generate for unknown class id: " << classid << "\n";
-        return;
+      return;
     }
 
     NetworkClass::EntityFactoryFunc factory = net_class->get_factory_func();
@@ -464,7 +464,7 @@ run_prediction() {
   bool valid = _delta_tick > 0;
   // Predict the player's actions.
   Prediction::ptr()->update(_delta_tick, valid, _last_command_ack,
-			    local_player->get_last_outgoing_command() + local_player->get_num_choked_commands());
+                            local_player->get_last_outgoing_command() + local_player->get_num_choked_commands());
 }
 
 /**
@@ -507,7 +507,7 @@ unpack_object_state(DatagramIterator &scan, NetworkObject *obj) {
 
     if (client_cat.is_debug()) {
       client_cat.debug()
-	<< "Receive data for field " << field->name << "\n";
+        << "Receive data for field " << field->name << "\n";
     }
 
     size_t start_remaining = scan.get_remaining_size();

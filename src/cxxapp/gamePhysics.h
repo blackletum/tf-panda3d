@@ -53,6 +53,8 @@ public:
 
 public:
   void initialize();
+  void update(float dt);
+
   bool load_surface_definitions();
   bool load_surface_definition_file(const Filename &filename);
 
@@ -68,6 +70,7 @@ public:
 
 private:
   PT(PhysScene) _phys_world;
+  PT(PhysMaterial) _null_material;
 
   typedef pflat_hash_map<std::string, PT(SurfaceDefinition), string_hash> SurfaceDefs;
   SurfaceDefs _surface_defs;
@@ -76,6 +79,8 @@ private:
   SurfacesByPhysMat _surfaces_by_phys_mat;
 
   static GamePhysics *_global_ptr;
+
+  friend struct SurfaceDefinition;
 };
 
 /**
@@ -95,7 +100,7 @@ get_surface_material(const std::string &name) {
   if (surf != nullptr) {
     return surf->get_phys_material();
   } else {
-    return nullptr;
+    return _null_material;
   }
 }
 

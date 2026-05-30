@@ -11,6 +11,8 @@
 #include "clockObject.h"
 #include "physSystem.h"
 #include "physScene.h"
+#include "../gamePhysics.h"
+#include "jobSystem.h"
 
 ConfigVariableInt sv_port("sv-port", "27015", PRC_DESC("Server port to talk over."));
 ConfigVariableString tf_map("tf-map", "levels/ctf_2fort", PRC_DESC("Level to load."));
@@ -21,23 +23,15 @@ ConfigVariableString tf_map("tf-map", "levels/ctf_2fort", PRC_DESC("Level to loa
 int
 main(int argc, char *argv[]) {
   init_libanim();
+  JobSystem::init_global_job_system();
 
   init_network_classes();
 
   globals.render = NodePath("render");
   globals.dyn_render = globals.render.attach_new_node("dynamic_render");
 
-  // Initialize physics.
-  // TODO: move physics stuff into a manager class?
-  PhysSystem *phys = PhysSystem::ptr();
-  if (!phys->initialize()) {
-    std::cerr << "Failed to initialize PhysX!\n";
-    return 1;
-  }
-  PT(PhysScene) phys_world = new PhysScene;
-  phys_world->set_gravity(LVector3f(0, 0, -800.0f));
-  phys_world->set_fixed_timestep(0.015f);
-  globals.physics_world = phys_world;
+  GamePhysics *phys = GamePhysics::ptr();
+  phys->initialize();
 
   GameServer *sv = GameServer::ptr();
 
@@ -59,7 +53,7 @@ main(int argc, char *argv[]) {
   while (true) {
     clock->tick();
     sv->run_frame();
-    phys_world->simulate(clock->get_dt());
+    phys->update(clock->get_frame_time());
   }
 
   return 0;

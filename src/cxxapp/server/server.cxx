@@ -474,7 +474,7 @@ update_client_interest(ClientConnection *client, const pset<ZONE_ID> &zones) {
  * client, which may give the client special priviledges over the object.
  */
 void GameServer::
-generate_object(NetworkObject *obj, ZONE_ID zone_id, ClientConnection *owner) {
+generate_object(NetworkObject *obj, ZONE_ID zone_id, ClientConnection *owner, bool announce) {
   nassertv(obj->is_do_new()); // Shouldn't be calling generate_object() more than once.
 
   obj->set_zone_id(zone_id);
@@ -520,10 +520,11 @@ generate_object(NetworkObject *obj, ZONE_ID zone_id, ClientConnection *owner) {
     add_client_interest(owner, { zone_id });
   }
 
-  // Make the object alive.
-  obj->generate();
-
-  nassertv(obj->is_do_alive());
+  if (announce) {
+    // Make the object alive.
+    obj->generate();
+    nassertv(obj->is_do_alive());
+  }
 }
 
 /**

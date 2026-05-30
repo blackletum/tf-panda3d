@@ -17,6 +17,8 @@ IndexBufferCombiner(const NodePath &root, int max_indices) :
  */
 void IndexBufferCombiner::
 combine() {
+  make_buffer();
+
   NodePathCollection geom_nodes = _root.find_all_matches("**/+GeomNode");
   if (_root.node()->is_of_type(GeomNode::get_class_type())) {
     // The root node may also be a GeomNode.

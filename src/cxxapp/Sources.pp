@@ -3,7 +3,7 @@
   dtoolbase:c dtoolutil:c pipeline:c linmath:c mathutil:c express:c \
   putil:c gobj:c device:c dgraph:c tform:c prc map:c shader:c event:c \
   pphysics:c anim:c audio:c steamnet:c net:c grutil:c text:c gsgbase:c \
-  display:c nativenet:c
+  display:c nativenet:c pstatclient:c pdx:c jobsystem:c
 
 // Third party packages we need to bring in.
 #define USE_PACKAGES physx valve_steamnet
@@ -37,7 +37,11 @@
   playerCommand.h playerCommand.cxx \
   gameEnums.h \
   weapon.h weapon.cxx \
-  viewModel.h viewModel.cxx
+  viewModel.h viewModel.cxx \
+  gamePhysics.h gamePhysics.cxx \
+  entityCollision.h entityCollision.cxx \
+  tfNodeData.h tfNodeData.cxx \
+  world.h world.cxx
 
 // TF2 client binary.
 #begin bin_target
@@ -52,7 +56,8 @@
     client_config.h client_config.cxx \
     localTFPlayer.h localTFPlayer.cxx \
     prediction.h prediction.cxx \
-    sounds.h sounds.cxx
+    sounds.h sounds.cxx \
+	indexBufferCombiner.h indexBufferCombiner.cxx
 
   #define SOURCES \
     $[SHARED_SOURCES] \
@@ -74,6 +79,7 @@
 
   #define SOURCES \
     $[SHARED_SOURCES] \
+    entityFactory.h entityFactory.cxx \
     $[matrix server/,$[SERVER_SOURCES]]
 
 #end bin_target

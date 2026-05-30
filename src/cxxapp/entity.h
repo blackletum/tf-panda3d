@@ -71,6 +71,8 @@ public:
 #ifdef SERVER
   // Called when the entity is coming from the level.
   virtual void init_from_level(const MapEntity *map_ent, PDXElement *props);
+  inline const std::string &get_target_name() const;
+  inline const std::string &get_class_name() const;
 #endif
 
 #ifdef CLIENT
@@ -116,6 +118,11 @@ protected:
   PT(InterpolatedVec3f) _iv_pos;
   PT(InterpolatedVec3f) _iv_hpr;
   PT(PredictedObject) _pred;
+#endif
+#ifdef SERVER
+  std::string _target_name;
+  std::string _parent_entity_target_name;
+  std::string _class_name;
 #endif
 
 public:
@@ -192,6 +199,26 @@ add_pred_field(const std::string &name, Type *data_ptr, typename PredictionField
 inline PredictedObject *Entity::
 get_pred() const {
   return _pred;
+}
+
+#endif
+
+#ifdef SERVER
+
+/**
+ *
+ */
+inline const std::string &Entity::
+get_target_name() const {
+  return _target_name;
+}
+
+/**
+ *
+ */
+inline const std::string &Entity::
+get_class_name() const {
+  return _class_name;
 }
 
 #endif

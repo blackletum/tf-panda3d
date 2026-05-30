@@ -110,7 +110,7 @@ public:
 
   bool can_accept_connection() const;
 
-  void generate_object(NetworkObject *obj, ZONE_ID zone_id, ClientConnection *owner = nullptr);
+  void generate_object(NetworkObject *obj, ZONE_ID zone_id, ClientConnection *owner = nullptr, bool announce = true);
   void delete_object(NetworkObject *obj);
 
   void take_tick_snapshot(int tick_count);

@@ -6,6 +6,7 @@
 #include "tfPlayer.h"
 #include "weapon.h"
 #include "viewModel.h"
+#include "world.h"
 
 /**
  * Initializes all network classes.
@@ -21,6 +22,11 @@ init_network_classes() {
   TFPlayer::init_network_class();
   Weapon::init_network_class();
   ViewModel::init_network_class();
+  World::init_network_class();
+
+#ifdef SERVER
+  World::register_ent_factory();
+#endif
 
   NetworkClassRegistry *reg = NetworkClassRegistry::ptr();
   reg->build_ids();

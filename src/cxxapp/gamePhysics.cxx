@@ -13,6 +13,18 @@
 GamePhysics *GamePhysics::_global_ptr = nullptr;
 
 /**
+ * Returns the phys material for the surface.
+ */
+PhysMaterial *GamePhysics::SurfaceDefinition::
+get_phys_material() {
+  if (_phys_material == nullptr) {
+    _phys_material = new PhysMaterial(friction, friction, elasticity);
+    GamePhysics::ptr()->_surfaces_by_phys_mat[_phys_material] = this;
+  }
+  return _phys_material;
+}
+
+/**
  *
  */
 void GamePhysics::
@@ -26,6 +38,16 @@ initialize() {
   _phys_world->set_gravity(LVector3f(0, 0, -800.0f));
   _phys_world->set_fixed_timestep(0.015f);
   globals.physics_world = _phys_world;
+  _null_material = new PhysMaterial(0.0f, 0.0f, 0.0f);
+  load_surface_definitions();
+}
+
+/**
+ *
+ */
+void GamePhysics::
+update(float frame_time) {
+  _phys_world->simulate(frame_time);
 }
 
 /**
@@ -107,8 +129,8 @@ load_surface_definitions() {
     if (man_block->get_key(i) == "file") {
       Filename sp_filename = Filename::from_os_specific(man_block->get_value(i));
       if (!load_surface_definition_file(sp_filename)) {
-	std::cout << "ERROR: Couldn't load " << sp_filename << " from manifest file\n";
-	return false;
+        std::cout << "ERROR: Couldn't load " << sp_filename << " from manifest file\n";
+        return false;
       }
     }
   }
@@ -136,19 +158,19 @@ load_surface_definition_file(const Filename &filename) {
     if (surface_block->has_key("base")) {
       def = get_surface_def(downcase(surface_block->get_value("base")));
       if (def == nullptr) {
-	std::cerr << "Base " << surface_block->get_value("base")
-		  << " not found (referenced by surface " << surface_name << ")\n";
-	return false;
+        std::cerr << "Base " << surface_block->get_value("base")
+                  << " not found (referenced by surface " << surface_name << ")\n";
+        return false;
       }
       def = new SurfaceDefinition(*def);
     } else {
       // If no base, use "default" as base.
       def = get_surface_def("default");
       if (def != nullptr) {
-	def = new SurfaceDefinition(*def);
+        def = new SurfaceDefinition(*def);
       } else {
-	// This must be the surface definition for "default".
-	def = new SurfaceDefinition;
+        // This must be the surface definition for "default".
+        def = new SurfaceDefinition;
       }
     }
 
@@ -160,53 +182,53 @@ load_surface_definition_file(const Filename &filename) {
 
       // Yikes.
       if (key == "thickness") {
-	string_to_float(key, def->thickness);
+        string_to_float(key, def->thickness);
       } else if (key == "density") {
-	string_to_float(key, def->density);
+        string_to_float(key, def->density);
       } else if (key == "friction") {
-	string_to_float(key, def->friction);
+        string_to_float(key, def->friction);
       } else if (key == "dampening") {
-	string_to_float(key, def->dampening);
+        string_to_float(key, def->dampening);
       } else if (key == "audioreflectivity") {
-	string_to_float(key, def->audio_reflectivity);
+        string_to_float(key, def->audio_reflectivity);
       } else if (key == "audiohardnessfactor") {
-	string_to_float(key, def->audio_hardness_factor);
+        string_to_float(key, def->audio_hardness_factor);
       } else if (key == "audioroughnessfactor") {
-	string_to_float(key, def->audio_roughness_factor);
+        string_to_float(key, def->audio_roughness_factor);
       } else if (key == "scraperoughthreshold") {
-	string_to_float(key, def->scrape_rough_threshold);
+        string_to_float(key, def->scrape_rough_threshold);
       } else if (key == "impacthardthreshold") {
-	string_to_float(key, def->impact_hard_threshold);
+        string_to_float(key, def->impact_hard_threshold);
       } else if (key == "jumpfactor") {
-	string_to_float(key, def->jump_factor);
+        string_to_float(key, def->jump_factor);
       } else if (key == "maxspeedfactor") {
-	string_to_float(key, def->max_speed_factor);
+        string_to_float(key, def->max_speed_factor);
       } else if (key == "climbable") {
-	float climbable_val;
-	string_to_float(key, climbable_val);
-	def->climbable = climbable_val > 0;
+        float climbable_val;
+        string_to_float(key, climbable_val);
+        def->climbable = climbable_val > 0;
       } else if (key == "stepleft") {
-	def->step_left = value;
+        def->step_left = value;
       } else if (key == "stepright") {
-	def->step_right = value;
+        def->step_right = value;
       } else if (key == "bulletimpact") {
-	def->bullet_impact = value;
+        def->bullet_impact = value;
       } else if (key == "scraperough") {
-	def->scrape_rough = value;
+        def->scrape_rough = value;
       } else if (key == "scrapesmooth") {
-	def->scrape_smooth = value;
+        def->scrape_smooth = value;
       } else if (key == "impacthard") {
-	def->impact_hard = value;
+        def->impact_hard = value;
       } else if (key == "impactsoft") {
-	def->impact_soft = value;
+        def->impact_soft = value;
       } else if (key == "gamematerial") {
-	def->game_material = value;
+        def->game_material = value;
       } else if (key == "break") {
-	def->break_snd = value;
+        def->break_snd = value;
       } else if (key == "strain") {
-	def->strain = value;
+        def->strain = value;
       } else if (key == "impactdecal") {
-	def->impact_decal = value;
+        def->impact_decal = value;
       }
     }
 
