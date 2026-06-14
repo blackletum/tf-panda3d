@@ -6,6 +6,8 @@ from direct.directbase import DirectRender
 
 from .DistributedEntity import DistributedEntity
 
+from tf.tfbase import CollisionGroups, TFFilters
+
 
 class DistributedPointSpotlight(DistributedEntity):
     """
@@ -49,13 +51,21 @@ class DistributedPointSpotlight(DistributedEntity):
 
             self.reparentTo(base.dynRender)
 
+            self.spotlightDir = Vec3(self.spotlightDir[0], self.spotlightDir[1], self.spotlightDir[2])
+
+            # Trace from the entity origin in the direction of the beam.
+            # Intersect with world geometry and cut the length short so beams
+            # don't poke through.
+            origin = self.getPos(base.render)
+            traceEnd = origin + self.spotlightDir * self.spotlightLength
+            tr = TFFilters.traceLine(origin, traceEnd, CollisionGroups.World, TFFilters.TFQueryFilter(self, [TFFilters.worldOnly]))
+            length = self.spotlightLength * tr['frac']
+
             #mins = Point3(-self.spotlightWidth, -self.spotlightWidth, -self.spotlightLength)
             #maxs = Point3(self.spotlightWidth, self.spotlightWidth, 0)
             #self.node().setBounds(BoundingBox(mins, maxs))
             self.node().setFinal(True)
             #self.showBounds()
-
-            self.spotlightDir = Vec3(self.spotlightDir[0], self.spotlightDir[1], self.spotlightDir[2])
 
             self.negSpotlightDir = -self.spotlightDir
 
@@ -64,7 +74,7 @@ class DistributedPointSpotlight(DistributedEntity):
 
             clbkNode = SpotlightBeam("spotlight-callback")
             clbkNode.setBeamColor(self.rgbColor * self.brightnessFactor)
-            clbkNode.setBeamSize(self.spotlightLength, self.spotlightWidth)
+            clbkNode.setBeamSize(length, self.spotlightWidth)
             clbkNode.setHaloColor(self.rgbColor)
             clbkNode.setHaloSize(75)
             root = self.attachNewNode(clbkNode)
@@ -77,7 +87,7 @@ class DistributedPointSpotlight(DistributedEntity):
             cm.setHasUvs(True)
             beamNp = spotlight.attachNewNode(cm.generate())
             beamNp.setMaterial(base.loader.loadMaterial("materials/glow_test02.mto"))
-            beamNp.setSz(self.spotlightLength)
+            beamNp.setSz(length)
             beamNp.setSx(self.spotlightWidth)
             beamNp.setBillboardAxis()
 
